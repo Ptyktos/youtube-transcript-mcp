@@ -57,6 +57,7 @@ impl TranscriptServer {
     }
 }
 
+#[expect(clippy::unused_async_trait_impl)]
 #[tool(tool_box)]
 impl ServerHandler for TranscriptServer {
     fn get_info(&self) -> ServerInfo {
