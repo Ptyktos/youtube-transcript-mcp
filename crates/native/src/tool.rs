@@ -1,31 +1,43 @@
-// rmcp's `#[tool(tool_box)]` macro (below) parses its impl block with no
-// tolerance for an adjacent attribute in either order -- `#[expect(...)]`
-// directly on that impl produces a bogus "expected `fn`" error instead of
-// suppressing the lint. Module-scoped instead.
-#![expect(clippy::unused_async_trait_impl)]
-
 use reqwest::Client;
 use rmcp::{
-    model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
-    tool, ServerHandler,
+    handler::server::{tool::ToolRouter, wrapper::Parameters},
+    model::{CallToolResult, ContentBlock, ServerCapabilities, ServerConfig},
+    schemars, tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler,
 };
+use serde::Deserialize;
 use youtube_transcript_mcp_core::TranscriptError;
 
 use crate::fetch::get_transcript;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GetTranscriptRequest {
+    /// `YouTube` video URL (any format: watch, youtu.be, shorts, live, embed)
+    pub url: String,
+    /// Language code (e.g. 'en', 'es', 'fr'). Omit or use 'auto' for automatic detection.
+    pub language: Option<String>,
+    /// Output format: 'text' (default), 'json', 'srt', 'vtt', or 'markdown'. 'json' and
+    /// 'markdown' embed clickable links to each timestamp in the video.
+    pub format: Option<String>,
+}
+
+#[derive(Clone)]
 pub struct TranscriptServer {
     client: Client,
+    #[expect(dead_code, reason = "tool_handler macro accesses this router field")]
+    tool_router: ToolRouter<Self>,
 }
 
 impl TranscriptServer {
     #[must_use]
     pub fn new(client: Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            tool_router: Self::tool_router(),
+        }
     }
 }
 
-#[tool(tool_box)]
+#[tool_router]
 impl TranscriptServer {
     /// Extract the full transcript from a `YouTube` video.
     #[tool(
@@ -33,46 +45,32 @@ impl TranscriptServer {
     )]
     async fn get_transcript(
         &self,
-        #[tool(param)]
-        #[schemars(
-            description = "YouTube video URL (any format: watch, youtu.be, shorts, live, embed)"
-        )]
-        url: String,
-        #[tool(param)]
-        #[schemars(
-            description = "Language code (e.g. 'en', 'es', 'fr'). Omit or use 'auto' for automatic detection."
-        )]
-        language: Option<String>,
-        #[tool(param)]
-        #[schemars(
-            description = "Output format: 'text' (default), 'json', 'srt', 'vtt', or 'markdown'. 'json' and 'markdown' embed clickable links to each timestamp in the video."
-        )]
-        format: Option<String>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        request: Parameters<GetTranscriptRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let Parameters(GetTranscriptRequest {
+            url,
+            language,
+            format,
+        }) = request;
         let lang = language.as_deref().unwrap_or("auto");
         let fmt = format.as_deref().unwrap_or("text");
         get_transcript(&self.client, &url, lang, fmt)
             .await
-            .map(|r| CallToolResult::success(vec![Content::text(r.text)]))
+            .map(|r| CallToolResult::success(vec![ContentBlock::text(r.text)]))
             .map_err(|e| match &e {
                 TranscriptError::InvalidUrl | TranscriptError::InvalidVideoId => {
-                    rmcp::Error::invalid_params(e.to_string(), None)
+                    McpError::invalid_params(e.to_string(), None)
                 }
-                _ => rmcp::Error::internal_error(e.to_string(), None),
+                _ => McpError::internal_error(e.to_string(), None),
             })
     }
 }
 
-#[tool(tool_box)]
+#[tool_handler]
 impl ServerHandler for TranscriptServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: rmcp::model::Implementation {
-                name: "youtube-transcript-mcp".into(),
-                version: env!("CARGO_PKG_VERSION").into(),
-            },
-            ..Default::default()
-        }
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_server_info(
+            rmcp::model::Implementation::new("youtube-transcript-mcp", env!("CARGO_PKG_VERSION")),
+        )
     }
 }

@@ -5,7 +5,9 @@
 //!
 //! Run with: `cargo bench -p youtube-transcript-mcp-core --bench parser`
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::fmt::Write as _;
+use std::hint::black_box;
 use youtube_transcript_mcp_core::parse_transcript_xml;
 
 fn synth_srv3(n_paras: usize, segs_per_para: usize) -> String {
@@ -13,9 +15,9 @@ fn synth_srv3(n_paras: usize, segs_per_para: usize) -> String {
     let mut s = String::with_capacity(n_paras * segs_per_para * 64);
     s.push_str("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<timedtext format=\"3\"><body>");
     for i in 0..n_paras {
-        s.push_str(&format!(r#"<p t="{}" d="3000">"#, i * 3000));
+        let _ = write!(s, r#"<p t="{}" d="3000">"#, i * 3000);
         for j in 0..segs_per_para {
-            s.push_str(&format!(r#"<s t="{}">word{}_{} </s>"#, j * 100, i, j));
+            let _ = write!(s, r#"<s t="{}">word{}_{} </s>"#, j * 100, i, j);
         }
         s.push_str("</p>");
     }
@@ -23,6 +25,10 @@ fn synth_srv3(n_paras: usize, segs_per_para: usize) -> String {
     s
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "benchmark iteration body should panic with a clear message"
+)]
 fn bench_parser(c: &mut Criterion) {
     // (paragraphs, segments_per_paragraph, label)
     let configs: &[(usize, usize, &str)] = &[

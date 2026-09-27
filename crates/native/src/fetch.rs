@@ -193,6 +193,10 @@ async fn get_transcript_via(
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::expect_used,
+    reason = "test setup failures should panic with a clear message"
+)]
 mod tests {
     use super::*;
     use wiremock::matchers::{header, method, path};
@@ -215,7 +219,7 @@ mod tests {
     }
 
     /// Regression guard: the caption-XML GET must carry the Android `User-Agent`.
-    /// Without it YouTube returns truncated/empty bodies, which previously
+    /// Without it `YouTube` returns truncated/empty bodies, which previously
     /// surfaced as a successful but empty transcript.
     #[tokio::test]
     async fn caption_get_sends_user_agent() {

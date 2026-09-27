@@ -194,6 +194,10 @@ pub fn format_transcript(
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::expect_used,
+    reason = "test assertions should panic with a clear message"
+)]
 mod tests {
     use super::*;
 

@@ -1,6 +1,7 @@
 use crate::error::TranscriptError;
 use crate::language::{Language, AUTO_DETECT_ORDER};
 use crate::url::VideoId;
+use quick_xml::escape::unescape;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 use serde::Deserialize;
@@ -237,17 +238,14 @@ pub fn select_track<'a>(
 fn cue_timing(e: &BytesStart) -> (f64, f64) {
     let (mut start_s, mut dur_s, mut t_ms, mut d_ms) = (None, None, None, None);
     for attr in e.attributes().flatten() {
-        let Some(v) = std::str::from_utf8(&attr.value)
-            .ok()
-            .and_then(|s| s.parse::<f64>().ok())
-        else {
+        let Some(v) = attr.value.parse::<f64>().ok() else {
             continue;
         };
         match attr.key.as_ref() {
-            b"start" => start_s = Some(v),
-            b"dur" => dur_s = Some(v),
-            b"t" => t_ms = Some(v),
-            b"d" => d_ms = Some(v),
+            "start" => start_s = Some(v),
+            "dur" => dur_s = Some(v),
+            "t" => t_ms = Some(v),
+            "d" => d_ms = Some(v),
             _ => {}
         }
     }
@@ -260,14 +258,19 @@ fn cue_timing(e: &BytesStart) -> (f64, f64) {
 ///
 /// Handles both `<text>` elements (legacy format) and `<p>`/`<s>` elements
 /// (Innertube srv3 format); text from nested `<s>` runs is merged into its
-/// parent cue. XML entities (`&amp;`, `&lt;`, etc.) are unescaped automatically
-/// by `quick-xml`. Cues with no text are skipped.
+/// parent cue. XML entities (`&amp;`, `&lt;`, etc.) are unescaped explicitly --
+/// `quick-xml` 0.42 splits entity references out of `Text` into their own
+/// `GeneralRef` events rather than resolving them inline. Cues with no text
+/// are skipped.
 ///
 /// # Errors
 /// Returns `TranscriptError::Parse` if the XML is malformed.
 pub fn parse_transcript_segments(xml: &str) -> Result<Vec<Segment>, TranscriptError> {
+    // Not `trim_text(true)`: that trims each Text event's own leading/trailing
+    // whitespace, which destroys meaningful spacing whenever a run of text is
+    // split around an entity reference (e.g. "Hello " + "&amp;" + " world").
+    // Whitespace is normalized once per accumulated run instead, below.
     let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
 
     let mut segments: Vec<Segment> = Vec::new();
     let mut in_cue = false;
@@ -277,27 +280,51 @@ pub fn parse_transcript_segments(xml: &str) -> Result<Vec<Segment>, TranscriptEr
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e))
-                if e.name().as_ref() == b"p" || e.name().as_ref() == b"text" =>
-            {
+            Ok(Event::Start(ref e)) if e.name().as_ref() == "p" || e.name().as_ref() == "text" => {
                 let (start, dur) = cue_timing(e);
                 cur_start = start;
                 cur_dur = dur;
                 cur_text.clear();
                 in_cue = true;
             }
+            // A nested `<s>` run starts a new space-joined chunk. Text and entity
+            // references within a run are concatenated directly (no space) -- a single
+            // logical run of text is often split into several Text/GeneralRef events
+            // by the parser whenever it contains an XML entity.
+            Ok(Event::Start(ref e)) if in_cue && e.name().as_ref() == "s" => {
+                cur_text.push(String::new());
+            }
             Ok(Event::Text(ref e)) if in_cue => {
-                let s = e
-                    .unescape()
-                    .map_err(|e| TranscriptError::Parse(e.to_string()))?;
-                let trimmed = s.trim();
-                if !trimmed.is_empty() {
-                    cur_text.push(trimmed.to_string());
+                let s = unescape(e.as_ref()).map_err(|e| TranscriptError::Parse(e.to_string()))?;
+                match cur_text.last_mut() {
+                    Some(last) => last.push_str(&s),
+                    None => cur_text.push(s.into_owned()),
                 }
             }
-            Ok(Event::End(ref e)) if e.name().as_ref() == b"p" || e.name().as_ref() == b"text" => {
+            Ok(Event::GeneralRef(ref e)) if in_cue => {
+                let resolved = if e.is_char_ref() {
+                    e.resolve_char_ref()
+                        .map_err(|e| TranscriptError::Parse(e.to_string()))?
+                        .map(String::from)
+                } else {
+                    quick_xml::escape::resolve_predefined_entity(e.as_ref())
+                        .map(ToString::to_string)
+                };
+                if let Some(resolved) = resolved {
+                    match cur_text.last_mut() {
+                        Some(last) => last.push_str(&resolved),
+                        None => cur_text.push(resolved),
+                    }
+                }
+            }
+            Ok(Event::End(ref e)) if e.name().as_ref() == "p" || e.name().as_ref() == "text" => {
                 if in_cue {
-                    let text = cur_text.join(" ");
+                    let text = cur_text
+                        .iter()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .collect::<Vec<_>>()
+                        .join(" ");
                     if !text.is_empty() {
                         segments.push(Segment {
                             start: cur_start,
@@ -335,6 +362,10 @@ pub fn parse_transcript_xml(xml: &str) -> Result<String, TranscriptError> {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::unwrap_used,
+    reason = "test assertions should panic with a clear message"
+)]
 mod tests {
     use super::*;
     use crate::language::Language;
@@ -489,7 +520,7 @@ mod tests {
         let data = parse_innertube_response(json).unwrap();
         assert_eq!(data.audio_streams.len(), 2);
         assert!(data.audio_streams[0].mime_type.contains("mp4")); // mp4 sorted first
-        assert_eq!(data.audio_streams[0].bitrate, 128000);
+        assert_eq!(data.audio_streams[0].bitrate, 128_000);
     }
 
     #[test]

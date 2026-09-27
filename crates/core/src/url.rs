@@ -108,6 +108,10 @@ pub fn extract_video_id(raw: &str) -> Result<VideoId, TranscriptError> {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::unwrap_used,
+    reason = "test assertions should panic with a clear message"
+)]
 mod tests {
     use super::*;
 
