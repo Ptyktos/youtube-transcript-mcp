@@ -1,3 +1,9 @@
+// rmcp's `#[tool(tool_box)]` macro (below) parses its impl block with no
+// tolerance for an adjacent attribute in either order -- `#[expect(...)]`
+// directly on that impl produces a bogus "expected `fn`" error instead of
+// suppressing the lint. Module-scoped instead.
+#![expect(clippy::unused_async_trait_impl)]
+
 use reqwest::Client;
 use rmcp::{
     model::{CallToolResult, Content, ServerCapabilities, ServerInfo},
@@ -57,7 +63,6 @@ impl TranscriptServer {
     }
 }
 
-#[expect(clippy::unused_async_trait_impl)]
 #[tool(tool_box)]
 impl ServerHandler for TranscriptServer {
     fn get_info(&self) -> ServerInfo {
