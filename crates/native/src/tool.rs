@@ -1,3 +1,10 @@
+// rmcp's `#[tool_handler]`/`#[tool_router]` macros parse their impl block with
+// no tolerance for an adjacent attribute in either order -- `#[expect(...)]`
+// directly on the impl produces a bogus "expected `fn`" error instead of
+// suppressing the lint (confirmed empirically against this exact macro
+// earlier in the rmcp 0.1.x version of this file). Module-scoped instead.
+#![expect(clippy::unused_async_trait_impl)]
+
 use reqwest::Client;
 use rmcp::{
     handler::server::{tool::ToolRouter, wrapper::Parameters},
