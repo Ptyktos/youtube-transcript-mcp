@@ -11,6 +11,7 @@
 #      cold-start tax that every invocation pays.
 
 DELAY_MS="${MOCK_DELAY_MS:-0}"
+CANNED_VTT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../canned" && pwd)/canned.en.vtt"
 
 case "$*" in
   *--version*)
@@ -45,10 +46,10 @@ if [ "$DELAY_MS" -gt 0 ]; then
 fi
 
 if [ -n "$out_dir" ] && [ -d "$out_dir" ]; then
-  cp /tmp/bench/canned/canned.en.vtt "$out_dir/Sample.en.vtt"
+  cp "$CANNED_VTT" "$out_dir/Sample.en.vtt"
   echo "[info] Writing video subtitles to: $out_dir/Sample.en.vtt" >&2
 else
-  cp /tmp/bench/canned/canned.en.vtt ./video.en.vtt
+  cp "$CANNED_VTT" ./video.en.vtt
   echo "[info] Writing video subtitles to: ./video.en.vtt" >&2
 fi
 exit 0

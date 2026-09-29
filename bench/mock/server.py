@@ -18,13 +18,17 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-CANNED_DIR = "/tmp/bench/canned"
-with open(f"{CANNED_DIR}/innertube.json", "rb") as f:
-    INNERTUBE = f.read()
-with open(f"{CANNED_DIR}/caption.xml", "rb") as f:
-    CAPTION = f.read()
+CANNED_DIR = Path(__file__).resolve().parent.parent / "canned"
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 18080
+# The canned Innertube response points caption tracks at 127.0.0.1:18080;
+# rewrite so the mock works on any port.
+INNERTUBE = (CANNED_DIR / "innertube.json").read_bytes().replace(
+    b"127.0.0.1:18080", f"127.0.0.1:{PORT}".encode()
+)
+CAPTION = (CANNED_DIR / "caption.xml").read_bytes()
 
 DELAY_MS = int(os.environ.get("MOCK_DELAY_MS", "0"))
 
@@ -63,5 +67,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 18080
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
