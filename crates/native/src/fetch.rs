@@ -117,7 +117,11 @@ pub async fn get_transcript(
     language_str: &str,
     format_str: &str,
 ) -> Result<TranscriptResult, TranscriptError> {
-    get_transcript_via(client, INNERTUBE_URL, url, language_str, format_str).await
+    // `YTMCP_INNERTUBE_URL` redirects the Innertube POST, so the shipped binary
+    // can be benchmarked against the local mock in `bench/`. Unset in production.
+    let endpoint = std::env::var("YTMCP_INNERTUBE_URL").ok();
+    let innertube_url = endpoint.as_deref().unwrap_or(INNERTUBE_URL);
+    get_transcript_via(client, innertube_url, url, language_str, format_str).await
 }
 
 /// Like [`get_transcript`] but with an injectable Innertube endpoint, for testing.

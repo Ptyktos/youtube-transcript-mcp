@@ -21,7 +21,7 @@ const MOCK = process.env.MOCK_URL ?? "http://127.0.0.1:18080";
 const SAMPLE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
 async function modeParse(iters: number) {
-  const xml = fs.readFileSync("/tmp/bench/canned/caption.xml", "utf8");
+  const xml = fs.readFileSync(new URL("../../canned/caption.xml", import.meta.url), "utf8");
   const t0 = performance.now();
   let bytesOut = 0;
   for (let i = 0; i < iters; i++) {
@@ -32,7 +32,7 @@ async function modeParse(iters: number) {
 }
 
 async function modeParseJson(iters: number) {
-  const txt = fs.readFileSync("/tmp/bench/canned/innertube.json", "utf8");
+  const txt = fs.readFileSync(new URL("../../canned/innertube.json", import.meta.url), "utf8");
   const t0 = performance.now();
   let n = 0;
   for (let i = 0; i < iters; i++) {

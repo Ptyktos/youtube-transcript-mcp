@@ -5,6 +5,7 @@ Same modes as the Rust/TS clients (parse, parse-json, e2e, cold, memory) so
 the run.py harness can compare apples-to-apples.
 """
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -12,7 +13,8 @@ from pathlib import Path
 import youtube_transcript_api._settings as _settings
 import youtube_transcript_api._transcripts as _transcripts
 
-MOCK = "http://127.0.0.1:18080"
+MOCK = os.environ.get("MOCK_URL", "http://127.0.0.1:18080")
+CANNED = Path(__file__).resolve().parent.parent / "canned"
 # Patch BOTH the source-of-truth and the imported names in _transcripts (it
 # imports them directly: `from ._settings import WATCH_URL, ...`).
 _settings.WATCH_URL = MOCK + "/watch?v={video_id}"
@@ -54,7 +56,7 @@ def main():
     if mode == "parse":
         # Use the library's own internal parser on the canned XML.
         from youtube_transcript_api._transcripts import _TranscriptParser
-        xml = Path("/tmp/bench/canned/caption.xml").read_text()
+        xml = (CANNED / "caption.xml").read_text()
         parser = _TranscriptParser()
         # Library API: parse(xml) → list[FetchedTranscriptSnippet]
         t0 = time.perf_counter_ns()
@@ -67,7 +69,7 @@ def main():
         print(json.dumps({"mode": "parse", "iters": iters, "ms": ms, "bytesIn": len(xml), "bytesOut": bytes_out}))
 
     elif mode == "parse-json":
-        txt = Path("/tmp/bench/canned/innertube.json").read_text()
+        txt = (CANNED / "innertube.json").read_text()
         t0 = time.perf_counter_ns()
         n = 0
         for _ in range(iters):

@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
 
     match mode.as_str() {
         "parse" => {
-            let xml = std::fs::read_to_string("/tmp/bench/canned/caption.xml")?;
+            let xml = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../canned/caption.xml"))?;
             let t0 = Instant::now();
             let mut bytes_out: usize = 0;
             for _ in 0..iters {
@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
             );
         }
         "parse-json" => {
-            let txt = std::fs::read_to_string("/tmp/bench/canned/innertube.json")?;
+            let txt = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../canned/innertube.json"))?;
             let t0 = Instant::now();
             let mut n: usize = 0;
             for _ in 0..iters {

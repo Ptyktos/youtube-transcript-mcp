@@ -1,0 +1,12 @@
+# Renders bench/results/*.svg from bench/results/*.json. Standalone workspace.
+[workspace]
+
+[package]
+name = "bench-charts"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[dependencies]
+charton = "0.6"
+serde_json = "1"
