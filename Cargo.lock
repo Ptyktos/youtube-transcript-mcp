@@ -1400,9 +1400,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "3.4.1"
+version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b6317cd8c13e3ec9033cf2aa5aa92cd743f0f4f8a93cddc42ea0ae6ce3b8898"
+checksum = "fae7019994ae0fe4ada40b732f798f3ff26f0f04facb1477f1bf37eb4f18a2d3"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -1423,9 +1423,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp-macros"
-version = "3.4.1"
+version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ee366004e5f87c103be91c6c09337811517ae8d2f919ece9da7c21444b85c5"
+checksum = "c7e66877136e969d5a2d561ee5841b17717a0619aebd64abb47a2a2f46e34683"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2568,12 +2568,3 @@ name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
-
-[[patch.unused]]
-name = "ruler"
-version = "0.1.0"
-source = "git+https://gitlab.tas.twn.network/twn/ptyktos/ruler.git?branch=main#bb42d5e698d03cdea5f91f9a2a3e308ed7cb1673"
-
-[[patch.unused]]
-name = "sangdb"
-version = "0.1.0"
